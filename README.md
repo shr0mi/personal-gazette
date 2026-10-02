@@ -1,106 +1,159 @@
-# Personal Gazette
+<div align="center">
+  <img src="./logo.png" alt="Personal Gazette logo" width="160" height="160" />
+  <h1>Personal Gazette</h1>
+  <p>A personal newspaper for saving articles, summarizing them with AI, and remembering what matters.</p>
+</div>
 
-A local-first summarizer with a React and TypeScript interface, a Tauri/Rust host, and a local FastAPI sidecar. Start on **Home**, paste a website URL, and click **Fetch article** to extract article text with Trafilatura on your device. The app opens **Article** and fetches the text immediately. Expand **Extracted text** to review and edit it, then click **Summarize article** to generate a summary and key points with your configured local or cloud model through LiteLLM.
+## What it does
 
-## Prerequisites
+Personal Gazette is a local-first desktop app for knowledge workers who want to keep the ideas they find online. Its newspaper-inspired interface turns your reading into a searchable personal archive.
 
-- Node.js and npm
-- Rust with a desktop host target (`rustc --print host-tuple`)
-- Python 3.11 or newer with `venv` and `pip`
-- The [Tauri desktop prerequisites](https://v2.tauri.app/start/prerequisites/) for your operating system
+- **Extract articles:** paste a URL to fetch the main article text, then review or edit it before summarizing.
+- **Distill the key ideas:** generate a concise summary, key points, and an editable heading in the article's language.
+- **Build your archive:** save the source link, title, summary, key points, and model details on your device. Saving the same link updates its existing entry.
+- **Find what matters:** search saved articles by title, source, or summary. Favorite articles to bring them to the top of your library and onto Home.
+- **Revisit and refresh:** reopen saved summaries after restarting the app, or fetch and summarize an article again with your current model settings.
+- **Choose your model:** use a model running on your computer or connect your preferred cloud provider.
 
-Dependencies are installed in this repository's `node_modules` and `.venv`. No global npm, Cargo, or Python package installation is needed.
+To get started, configure a model in **Settings**, paste a link on **Home**, and click **Fetch article**. Review **Extracted text**, click **Summarize article**, adjust the title if needed, and click **Save article**.
 
-## Run locally
+### Your data
 
-```sh
-npm install
-npm run setup:python
-npm run dev:desktop
-```
+Saved articles and non-secret model preferences use local device storage. API keys stay in memory for the current session and must be entered again after restarting. Original extracted text is kept only for the current session; reopen the source with **Fetch article** when you need it again. Clearing the app's storage removes your archive.
 
-`dev:desktop` builds the Python executable and starts Vite and Tauri. PyInstaller's first run may take a few seconds; the interface waits up to 30 seconds for the API to become ready.
+Fetching an article requires an internet connection. Local summarization sends text only to your configured local server; cloud summarization sends it to the selected provider when you request a summary. Pages that require a login or JavaScript, or that block automated downloads, may not be extractable.
 
-Fetching a website requires an internet connection. Extracted text and edits stay in React state for the current session, and a successful new fetch replaces them. Failed fetches preserve the previous text and edits. Pages that require JavaScript, a login, or block automated downloads may not be extractable.
+## Supported LLM providers
 
-`npm run dev` alone serves the interface; the fetch workflow requires `npm run dev:desktop` to provide the local backend connection.
+Model requests run through **LiteLLM**, with the following providers available in the app:
 
-## Configure a model
+| Mode | Provider | Connection details |
+| --- | --- | --- |
+| Local | **llama.cpp** | A running `llama-server`, a model ID, and its local URL or port. Default: `http://127.0.0.1:8080/v1`. |
+| Local | **Ollama** | A running Ollama server, an installed model, and its local URL or port. Default: `http://127.0.0.1:11434`. |
+| Cloud | **OpenAI** | Model ID and API key. |
+| Cloud | **Anthropic** | Model ID and API key. |
+| Cloud | **Google Gemini** | Model ID and API key. |
+| Cloud | **OpenRouter** | Model ID in `provider/model-name` format and API key. |
+| Cloud | **Azure OpenAI** | Deployment name in the model field, API key, resource endpoint, and API version. |
+| Cloud | **Other OpenAI-compatible provider** | Model ID, API key, and an HTTPS API base URL, usually ending in `/v1`. |
 
-Open **Settings**, choose **Local** or **Cloud**, enter the connection details, and click **Save settings**. Non-secret preferences save on your device. API keys stay in memory for the session and must be entered again after restarting; they are never written to browser storage or a settings file.
+Open **Settings**, choose **Local** or **Cloud**, enter the connection details, and click **Save settings**. For local servers, **Load models** discovers the available model IDs. An API key is optional for local servers unless the server requires one. Standard cloud providers use their default endpoints unless you supply an override; all cloud endpoints must use HTTPS.
 
-### llama.cpp
+Local mode accepts loopback addresses only (`localhost`, `127.0.0.1`, or `::1`) and never falls back to a cloud model. Cloud calls use your provider account and may incur charges. Choose an instruction-tuned model with enough context for your article; text is sent without silent truncation.
 
-Start `llama-server` with an instruction-tuned GGUF model and enough context for your articles, for example:
+<details>
+<summary><strong>Set up a local model</strong></summary>
+
+**llama.cpp** — start a server with your instruction-tuned GGUF model:
 
 ```sh
 llama-server -m /path/to/model.gguf --host 127.0.0.1 --port 8080 --alias local-model -c 8192
 ```
 
-Choose **llama.cpp**, use `http://127.0.0.1:8080/v1` (or enter just `8080`), and click **Load models**. The app normalizes the `/v1` base path and discovers the model IDs from `/v1/models`. Select the model and save. Enter an API key only if your server requires one. See the [llama.cpp server documentation](https://github.com/ggml-org/llama.cpp/tree/master/tools/server).
+In Settings, choose **llama.cpp**, enter `http://127.0.0.1:8080/v1` or just `8080`, and click **Load models**. Adjust the context size to suit your model and article length.
 
-### Ollama
-
-Start Ollama and install the model you want to use:
+**Ollama** — start the server if it is not already running:
 
 ```sh
 ollama serve
+```
+
+In another terminal, install your chosen model:
+
+```sh
 ollama pull <model-name>
 ```
 
-Choose **Ollama**, use `http://127.0.0.1:11434` (or enter `11434`), and click **Load models**. Discovery uses `/api/tags`; LiteLLM's `ollama_chat` adapter sends generation requests to `/api/chat`. See [LiteLLM's Ollama integration](https://docs.litellm.ai/docs/providers/ollama). Local mode accepts loopback addresses only and never falls back to a cloud model.
+In Settings, choose **Ollama**, enter `http://127.0.0.1:11434` or just `11434`, and click **Load models**.
 
-### Cloud providers
+</details>
 
-Choose OpenAI, Anthropic, Google Gemini, OpenRouter, Azure OpenAI, or another OpenAI-compatible provider. Enter the exact model ID and your API key. OpenRouter IDs include the upstream provider (for example, `provider/model-name`). Azure also requires the resource endpoint, API version, and deployment name. A custom compatible provider requires an HTTPS API base URL, usually ending in `/v1`. Standard providers use their default endpoints unless you provide an override. See [LiteLLM's compatible endpoints](https://docs.litellm.ai/docs/providers/openai_compatible).
+## Development
 
-Clicking **Summarize** in cloud mode sends the current edited article text to that provider and may incur charges. Local mode sends it only to your configured local server. Summarization is explicit so you can review the extracted text first. If you edit the text after generating a summary, the output is marked as out of date until you regenerate it.
+### Tech stack
 
-## Save articles
+| Layer | Technologies |
+| --- | --- |
+| Interface | React 19, TypeScript, Vite 8, CSS, Lucide icons |
+| Desktop host | Tauri 2 and Rust |
+| Local API | Python, FastAPI, Uvicorn, Pydantic |
+| Article extraction | Trafilatura |
+| Model integration | LiteLLM and HTTPX |
+| Storage | WebView `localStorage` for saved articles and non-secret preferences |
+| Packaging | PyInstaller bundles the Python API as a Tauri sidecar |
+| Tests | Node's built-in test runner and Python `unittest` |
 
-Your model generates an article heading together with the summary and key points, using the same language as the article. The heading appears at the top of **Article** and under **A title for your collection**, where you can edit it before clicking **Save article**. Regenerating or refreshing updates an automatic heading while preserving your custom title. Open **Saved articles** to browse cards, search by title, source, or summary, and filter favorites. Click a card to open its summary and key points on **Article**, including after restarting the app. The article link, title, summary, model details, and timestamps are stored in local device storage; extracted text and API keys are not saved with articles. Saving the same link again updates its existing entry. If you edit the extracted text, regenerate the summary before saving.
+The React interface calls Tauri commands, which forward requests to a local FastAPI sidecar. The Rust host starts and stops that process, chooses a free loopback port, and authenticates API requests with a per-launch token.
 
-Click **Favorite** to star an article; a new article is saved at the same time. Favorites appear as cards on **Home** and come first on **Saved articles**. Click the star again to remove it from favorites while keeping it saved. Existing saved articles are retained and start without a favorite flag.
+### Prerequisites
 
-Opening a saved card shows its summary immediately without fetching. Its original text is not stored; use **Fetch article** on the article page to retrieve and edit the source again.
+- **Node.js 22.12 or newer** and npm. Vite also supports Node.js 20.19+ within the Node 20 release line.
+- **Rust** with a desktop host target available through `rustc --print host-tuple`.
+- **Python 3.11 or newer**, with `venv` and `pip`.
+- The [Tauri desktop prerequisites](https://v2.tauri.app/start/prerequisites/) for your operating system.
+- A running local model server or cloud provider credentials to generate summaries.
 
-Choose **Fetch & summarize again** on the saved article’s **Article** page to download fresh text and replace its saved summary using your current model settings. This needs an internet connection, a ready backend, and configured model settings. Cloud mode sends the fresh text to your provider and may incur charges. A failed fetch, summary, or storage write preserves the previous saved summary. Use the trash button on **Article** to remove an entry from the archive. Saved articles are specific to this device and are removed if you clear the app's storage.
+### Run the app
 
-## Build a desktop bundle
+From the repository root:
+
+```sh
+npm ci
+npm run setup:python
+npm run dev:desktop
+```
+
+`setup:python` creates `.venv` and installs the backend and packaging dependencies. `dev:desktop` builds the Python sidecar, starts the Vite development server, and opens the Tauri desktop app. Dependencies stay in the repository's `node_modules` and `.venv` directories.
+
+For interface-only work:
+
+```sh
+npm run dev
+```
+
+This starts Vite at `http://localhost:1420`. Article fetching and summarization require the desktop app and its sidecar, so use `dev:desktop` to exercise the full workflow.
+
+### Run tests
+
+Run these commands from the repository root after installing dependencies:
+
+```sh
+# Frontend: model settings, saved articles, favorites, refresh, and external links
+npm test
+
+# Backend: install test dependencies, then run extraction and model-routing tests
+.venv/bin/python -m pip install -r backend/requirements-dev.txt
+.venv/bin/python -m unittest discover -s backend/tests -v
+```
+
+On Windows, replace `.venv/bin/python` with `.venv/Scripts/python.exe`.
+
+Backend tests mock downloads and model calls, while using a real HTML fixture with Trafilatura for extraction. The tests do not require a running model server or cloud API key and can run offline once dependencies are installed.
+
+Run the compilation checks as well when changing application code:
+
+```sh
+npm run build
+cargo check --manifest-path src-tauri/Cargo.toml --locked
+```
+
+If the Python sidecar has not been built yet, run `npm run build:sidecar` before `cargo check`; Tauri expects the configured sidecar binary to exist.
+
+### Build a desktop bundle
 
 ```sh
 npm run build:desktop
 ```
 
-The build command packages a sidecar for the machine's current Rust host target. Build on each target operating system and architecture; the PyInstaller step is not a cross compiler.
+This builds the frontend, packages the Python sidecar, and produces desktop bundles under `src-tauri/target/release/bundle/`. Build on each target operating system and architecture; the sidecar packaging step does not cross-compile.
 
-## Project layout
+### Repository layout
 
-- `src/` — React article editor, model settings, and summary output.
-- `src-tauri/` — Rust desktop host; starts, monitors, and stops the sidecar.
-- `backend/` — FastAPI app and executable entry point.
-- `scripts/` — local Python setup and sidecar packaging.
-
-The Rust host chooses a free loopback port and passes a random token to the sidecar through its environment. The Python API binds to `127.0.0.1`, and all routes require that token. The frontend talks through Tauri commands, so it does not need direct network access or the token.
-
-## Extraction API
-
-`POST /extract` receives `{"url": "https://example.com/article"}` and returns `{"url": "https://example.com/article", "text": "Extracted article text…"}`. It accepts HTTP and HTTPS URLs, uses Trafilatura to download and extract the main text (including tables, excluding comments), and runs in FastAPI's thread pool so fetching does not block health checks. The `X-Backend-Token` header must match `DEEP_WEBSEARCH_TOKEN`.
-
-Errors return a JSON `detail`: `401` for an invalid token, `422` for invalid input or no readable article text, `502` for download failures, and `500` for an unexpected extraction failure. Extraction follows [Trafilatura's Python workflow](https://trafilatura.readthedocs.io/en/latest/quickstart.html).
-
-`POST /llm/models` accepts the active local model settings and returns `{"models": ["model-id"], "base_url": "http://127.0.0.1:8080/v1"}`.
-
-`POST /summarize` accepts `{"text": "Current edited article text", "settings": {"mode": "local", "provider": "llama_cpp", "model": "local-model", "base_url": "http://127.0.0.1:8080/v1", "api_key": "", "api_version": ""}}`. It returns `title` (a nonempty heading of at most 200 characters), `summary`, `key_points`, and the model/provider/mode used. All routes require the desktop token. Model calls time out after 180 seconds and do not retry automatically. Invalid output, unavailable servers, credentials, quotas, and context limits produce readable errors. The full text is sent without silent truncation; input is limited to 200,000 characters and the selected model's context window.
-
-## Verify changes
-
-```sh
-.venv/bin/python -m pip install -r backend/requirements-dev.txt
-.venv/bin/python -m unittest discover -s backend/tests -v
-npm test
-npm run build
-cargo check --manifest-path src-tauri/Cargo.toml --locked
+```text
+src/          React pages, article state, model settings, and frontend tests
+src-tauri/    Rust desktop host, Tauri configuration, and app icons
+backend/      FastAPI endpoints, extraction, model integration, and backend tests
+scripts/      Python environment setup and sidecar packaging
+logo.png      Personal Gazette logo
 ```
-
-The API tests use an HTML fixture and the real Trafilatura extractor; downloads and model providers are mocked so tests work offline. Tests cover local/cloud routing, edited text, model discovery, malformed responses, and credential redaction. On Windows, use `.venv/Scripts/python.exe` in place of `.venv/bin/python`.

@@ -1,0 +1,11 @@
+Use case: logo-brand
+Asset type: square app logo for Personal Gazette, an app where knowledge workers save articles and AI summaries for later recall.
+Primary request: Create one polished, distinctive square logo with a newspaper-inspired editorial identity.
+Scene/backdrop: flat paper-white square background (#f9f9f7), filling the entire 1:1 canvas.
+Subject: a compact newspaper emblem with a large custom bold serif "PG" masthead monogram as its dominant element. Integrate a small red bookmark ribbon into the newspaper to express saving knowledge. Two short, simple columns of horizontal newspaper rules beneath the monogram suggest distilled article highlights. The monogram and newspaper form a single cohesive mark.
+Style/medium: minimal flat graphic logo with crisp vector-like edges; refined newspaper typography inspired by Playfair Display, confident and literary. Strong silhouette and balanced negative space, legible at app-icon size.
+Composition/framing: one centered emblem occupying about 72 percent of the square; generous equal outer margins; carefully balanced geometry. Square canvas, straight-on presentation.
+Color palette: use the existing app palette only: near-black ink #111111, paper white #f9f9f7, and a restrained red #cc0000 bookmark accent.
+Text (verbatim): "PG". Render exactly these two uppercase letters clearly; no other text.
+Constraints: deliver one finished logo, not a presentation sheet. Keep the typography bold, newspaper rules few and sturdy, and bookmark simple. Flat solid fills, plain clean paper-white background.
+Avoid: gradients, shadows, 3D effects, mockups, photographs, paper texture, distress, ornate flourishes, tiny illegible text, robots, brains, AI sparkles, watermarks, extra logos, rounded outer app tile.
