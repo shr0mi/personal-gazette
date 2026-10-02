@@ -17,6 +17,84 @@ struct BackendHealth {
     service: String,
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+struct ExtractedWebsite {
+    url: String,
+    text: String,
+}
+
+#[derive(serde::Deserialize)]
+struct BackendError {
+    detail: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct LlmSettings {
+    mode: String,
+    provider: String,
+    model: String,
+    base_url: String,
+    api_key: String,
+    api_version: String,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct ModelList {
+    models: Vec<String>,
+    base_url: String,
+}
+
+#[derive(serde::Serialize)]
+struct SummaryRequest {
+    text: String,
+    settings: LlmSettings,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct ArticleSummary {
+    summary: String,
+    key_points: Vec<String>,
+    model: String,
+    mode: String,
+    provider: String,
+}
+
+async fn backend_post<T: serde::Serialize, R: serde::de::DeserializeOwned>(
+    state: &BackendState,
+    path: &str,
+    body: &T,
+    timeout: Duration,
+) -> Result<R, String> {
+    let response = reqwest::Client::new()
+        .post(format!("http://127.0.0.1:{}{path}", state.port))
+        .header("X-Backend-Token", &state.token)
+        .json(body)
+        .timeout(timeout)
+        .send()
+        .await
+        .map_err(|error| {
+            if error.is_timeout() {
+                "The request took too long. Try again or use a smaller article.".to_string()
+            } else {
+                "Could not reach the local backend. Restart the app and try again.".to_string()
+            }
+        })?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(response
+            .json::<BackendError>()
+            .await
+            .map(|error| error.detail)
+            .unwrap_or_else(|_| {
+                format!("The local backend could not complete the request ({status}).")
+            }));
+    }
+    response
+        .json::<R>()
+        .await
+        .map_err(|_| "The local backend returned an unreadable response.".to_string())
+}
+
 #[tauri::command]
 async fn backend_health(state: State<'_, BackendState>) -> Result<BackendHealth, String> {
     reqwest::Client::new()
@@ -31,6 +109,49 @@ async fn backend_health(state: State<'_, BackendState>) -> Result<BackendHealth,
         .json::<BackendHealth>()
         .await
         .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn backend_extract(
+    url: String,
+    state: State<'_, BackendState>,
+) -> Result<ExtractedWebsite, String> {
+    let parsed_url = reqwest::Url::parse(url.trim())
+        .map_err(|_| "Enter a valid website link, including https://.".to_string())?;
+    if !matches!(parsed_url.scheme(), "http" | "https") || parsed_url.host_str().is_none() {
+        return Err("Enter an http:// or https:// website link.".to_string());
+    }
+
+    backend_post(
+        &state,
+        "/extract",
+        &std::collections::HashMap::from([("url", parsed_url.as_str())]),
+        Duration::from_secs(120),
+    )
+    .await
+}
+
+#[tauri::command]
+async fn backend_models(
+    settings: LlmSettings,
+    state: State<'_, BackendState>,
+) -> Result<ModelList, String> {
+    backend_post(&state, "/llm/models", &settings, Duration::from_secs(20)).await
+}
+
+#[tauri::command]
+async fn backend_summarize(
+    text: String,
+    settings: LlmSettings,
+    state: State<'_, BackendState>,
+) -> Result<ArticleSummary, String> {
+    backend_post(
+        &state,
+        "/summarize",
+        &SummaryRequest { text, settings },
+        Duration::from_secs(240),
+    )
+    .await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -75,7 +196,12 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![backend_health])
+        .invoke_handler(tauri::generate_handler![
+            backend_health,
+            backend_extract,
+            backend_models,
+            backend_summarize
+        ])
         .build(tauri::generate_context!())
         .expect("error while building Tauri application");
 

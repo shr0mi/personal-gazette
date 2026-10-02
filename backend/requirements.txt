@@ -1,2 +1,5 @@
 fastapi>=0.116,<1
 uvicorn>=0.35,<1
+trafilatura>=2.0,<3
+litellm==1.103.2
+httpx>=0.28,<1
