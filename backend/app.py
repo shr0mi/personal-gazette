@@ -26,7 +26,7 @@ extraction_config = deepcopy(DEFAULT_CONFIG)
 extraction_config["DEFAULT"]["DOWNLOAD_TIMEOUT"] = "15"
 
 app = FastAPI(
-    title="Local Summarizer API",
+    title="Personal Gazette API",
     docs_url=None,
     redoc_url=None,
     openapi_url=None,

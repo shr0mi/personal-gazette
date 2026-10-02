@@ -35,7 +35,7 @@ class ConnectionError(Exception):
 
 def model_response(content=None, finish_reason="stop"):
     if content is None:
-        content = json.dumps({"summary": "A concise article summary.", "key_points": ["First fact.", "Second fact.", "Third fact."]})
+        content = json.dumps({"title": "A clearer view of the article", "summary": "A concise article summary.", "key_points": ["First fact.", "Second fact.", "Third fact."]})
     return SimpleNamespace(choices=[SimpleNamespace(finish_reason=finish_reason, message=SimpleNamespace(content=content))])
 
 
@@ -65,6 +65,7 @@ class ModelTests(unittest.TestCase):
     def test_local_routing_uses_edited_text_and_json_mode(self):
         response = self.summarize(text="My correction: the event was in 2025.")
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["title"], "A clearer view of the article")
         self.assertEqual(response.json()["key_points"], ["First fact.", "Second fact.", "Third fact."])
         options = self.sdk.completion.call_args.kwargs
         self.assertEqual(options["model"], "openai/my-model")
@@ -72,6 +73,8 @@ class ModelTests(unittest.TestCase):
         self.assertEqual(options["api_key"], "local-no-key-required")
         self.assertEqual(options["response_format"], {"type": "json_object"})
         self.assertIn("My correction: the event was in 2025.", options["messages"][1]["content"])
+        self.assertIn("title (a short, informative", options["messages"][0]["content"])
+        self.assertIn("same language as the article", options["messages"][0]["content"])
         self.assertEqual(options["num_retries"], 0)
         self.assertEqual(response.json()["mode"], "local")
 
@@ -131,19 +134,33 @@ class ModelTests(unittest.TestCase):
         self.sdk.completion.assert_not_called()
 
     def test_json_fences_and_thinking_are_handled(self):
-        content = '<think>Some private reasoning.</think>\n```json\n{"summary":"  Useful summary. ","key_points":[" Fact. "]}\n```'
+        content = '<think>Some private reasoning.</think>\n```json\n{"title":"  পাঠকের   নিজের নিয়ন্ত্রণ  ","summary":"  Useful summary. ","key_points":[" Fact. "]}\n```'
         self.sdk.completion.return_value = model_response(content)
         result = self.summarize().json()
+        self.assertEqual(result["title"], "পাঠকের নিজের নিয়ন্ত্রণ")
         self.assertEqual(result["summary"], "Useful summary.")
         self.assertEqual(result["key_points"], ["Fact."])
 
     def test_malformed_empty_or_truncated_outputs_fail_cleanly(self):
-        for content in ("Not JSON", '{"summary":"","key_points":["fact"]}', '{"summary":"summary","key_points":[]}', '{"summary":"summary","key_points":[""]}'):
+        for content in ("Not JSON", '{"title":"Heading","summary":"","key_points":["fact"]}', '{"title":"Heading","summary":"summary","key_points":[]}', '{"title":"Heading","summary":"summary","key_points":[""]}'):
             with self.subTest(content=content):
                 self.sdk.completion.return_value = model_response(content)
                 self.assertEqual(self.summarize().status_code, 502)
         self.sdk.completion.return_value = model_response(finish_reason="length")
         self.assertEqual(self.summarize().status_code, 502)
+
+    def test_missing_empty_or_oversized_headings_fail_cleanly(self):
+        valid = {"summary": "A summary.", "key_points": ["A fact."]}
+        for title in (None, "", " \n\t ", "x" * 201, 123, ["Heading"]):
+            with self.subTest(title=title):
+                self.sdk.completion.return_value = model_response(json.dumps({**valid, "title": title}))
+                response = self.summarize()
+                self.assertEqual(response.status_code, 502)
+                self.assertIn("heading", response.json()["detail"])
+        self.sdk.completion.return_value = model_response(json.dumps(valid))
+        self.assertEqual(self.summarize().status_code, 502)
+        self.sdk.completion.return_value = model_response(json.dumps({**valid, "title": "x" * 200}))
+        self.assertEqual(self.summarize().status_code, 200)
 
     def test_provider_failures_are_actionable_and_do_not_leak_secrets(self):
         for error, status in ((AuthenticationError, 502), (ContextError, 422), (RateLimitError, 429), (TimeoutError, 504), (ConnectionError, 502), (RuntimeError, 502)):

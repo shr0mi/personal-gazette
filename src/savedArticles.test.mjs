@@ -5,7 +5,7 @@ import ts from 'typescript';
 
 const source = await readFile(new URL('./savedArticles.ts', import.meta.url), 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 } });
-const { articleUrl, loadSavedArticles, persistSavedArticles, refreshSavedArticle, saveArticle, sortedArticles, titleFromUrl, toggleArticleFavorite } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputText).toString('base64')}`);
+const { articleUrl, loadSavedArticles, persistSavedArticles, refreshSavedArticle, saveArticle, sortedArticles, titleAfterSummary, titleFromUrl, toggleArticleFavorite } = await import(`data:text/javascript;base64,${Buffer.from(compiled.outputText).toString('base64')}`);
 const storage = new Map();
 const storageKey = 'local-summarizer.saved-articles.v1';
 const deviceStorage = {
@@ -13,7 +13,7 @@ const deviceStorage = {
   setItem: (key, value) => storage.set(key, value),
 };
 globalThis.localStorage = deviceStorage;
-const result = () => ({ summary: 'The reader stays in control. বাংলা', key_points: ['Local summaries stay on this device.'], model: 'local-model', mode: 'local', provider: 'llama_cpp' });
+const result = () => ({ title: 'Reading on your terms', summary: 'The reader stays in control. বাংলা', key_points: ['Local summaries stay on this device.'], model: 'local-model', mode: 'local', provider: 'llama_cpp' });
 const saved = () => saveArticle([], 'https://example.com/an-article', 'An article', result());
 
 test('article summaries survive reload without persisting extracted text or credentials', () => {
@@ -64,6 +64,9 @@ test('unsafe links, invalid summary records, and duplicate identities cannot ent
     (entry) => { entry.updatedAt = 'invalid'; },
     (entry) => { entry.summary.mode = 'invalid'; },
     (entry) => { entry.summary.summary = '  '; },
+    (entry) => { entry.summary.title = '  '; },
+    (entry) => { entry.summary.title = 42; },
+    (entry) => { entry.summary.title = 'x'.repeat(201); },
   ]) {
     const invalid = structuredClone(articles);
     mutate(invalid[0]);
@@ -151,6 +154,47 @@ test('article URLs keep meaningful query parameters and titles have a usable fal
   assert.equal(titleFromUrl('https://example.com/'), 'example.com');
   assert.equal(titleFromUrl('https://example.com/a-story_about-caf%C3%A9'), 'a story about café');
   assert.equal(titleFromUrl('https://example.com/%ZZ'), 'example.com');
+});
+
+test('AI headings replace URL placeholders and generated headings while keeping user edits', () => {
+  const url = 'https://example.com/an-article';
+  const first = result();
+  const next = { ...first, title: 'A new perspective' };
+  assert.equal(titleAfterSummary(titleFromUrl(url), null, first, url), first.title);
+  assert.equal(titleAfterSummary(first.title, first, next, url), next.title);
+  assert.equal(titleAfterSummary('My own heading', first, next, url), 'My own heading');
+  assert.equal(titleAfterSummary('My own heading', null, first, url), 'My own heading');
+});
+
+test('refresh updates AI headings and preserves edited headings across archive reloads', async () => {
+  for (const title of [result().title, 'My edited heading']) {
+    storage.clear();
+    persistSavedArticles(saveArticle([], 'https://example.com/an-article', title, result()));
+    const article = loadSavedArticles()[0];
+    const refreshed = await refreshSavedArticle(article, {
+      extract: async () => ({ text: 'Fresh source.' }),
+      summarize: async () => ({ ...result(), title: 'The fresh AI heading' }),
+    });
+    assert.equal(refreshed.title, title === result().title ? 'The fresh AI heading' : title);
+    assert.equal(refreshed.summary.title, 'The fresh AI heading');
+    persistSavedArticles([refreshed]);
+    assert.deepEqual(loadSavedArticles(), [refreshed]);
+  }
+});
+
+test('archives without AI headings still load and keep custom titles on refresh', async () => {
+  for (const title of ['an article', 'My older custom title']) {
+    storage.clear();
+    const records = saveArticle([], 'https://example.com/an-article', title, result());
+    delete records[0].summary.title;
+    storage.set(storageKey, JSON.stringify(records));
+    const article = loadSavedArticles()[0];
+    assert.equal(article.summary.title, undefined);
+    const refreshed = await refreshSavedArticle(article, {
+      extract: async () => ({ text: 'Fresh source.' }), summarize: async () => result(),
+    });
+    assert.equal(refreshed.title, title === 'an article' ? result().title : title);
+  }
 });
 
 test('existing archives load without favorites and invalid favorite values are rejected', () => {

@@ -1,4 +1,6 @@
 export type SummaryResult = {
+  // Older saved summaries predate generated headings.
+  title?: string;
   summary: string;
   key_points: string[];
   model: string;
@@ -39,12 +41,21 @@ export function titleFromUrl(value: string): string {
 function summaryFields(result: SummaryResult): SummaryResult {
   // Persist only the result, never extracted text or connection credentials.
   return {
+    ...(result.title !== undefined ? { title: result.title } : {}),
     summary: result.summary,
     key_points: [...result.key_points],
     model: result.model,
     mode: result.mode,
     provider: result.provider,
   };
+}
+
+export function titleAfterSummary(
+  title: string, previous: SummaryResult | null, next: SummaryResult, url: string,
+): string {
+  const previousTitle = previous?.title ?? titleFromUrl(url);
+  // Update automatic headings, keeping the reader's own title across generations.
+  return next.title && title.trim() === previousTitle ? next.title : title;
 }
 
 export function saveArticle(
@@ -93,6 +104,7 @@ export function loadSavedArticles(): SavedArticle[] {
       typeof updatedAt !== "string" || !Number.isFinite(Date.parse(updatedAt)) ||
       (isFavorite !== undefined && typeof isFavorite !== "boolean") ||
       !summary || typeof summary.summary !== "string" || !summary.summary.trim() ||
+      (summary.title !== undefined && (typeof summary.title !== "string" || !summary.title.trim() || summary.title.length > 200)) ||
       !Array.isArray(summary.key_points) || !summary.key_points.every((point: unknown) => typeof point === "string") ||
       typeof summary.model !== "string" || typeof summary.provider !== "string" ||
       !["local", "cloud"].includes(summary.mode)
@@ -124,5 +136,10 @@ export async function refreshSavedArticle(
   const extracted = await services.extract(article.url);
   if (!extracted.text.trim()) throw new Error("No readable article text was found.");
   const summary = await services.summarize(extracted.text);
-  return { ...article, summary: summaryFields(summary), updatedAt: new Date().toISOString() };
+  return {
+    ...article,
+    title: titleAfterSummary(article.title, article.summary, summary, article.url),
+    summary: summaryFields(summary),
+    updatedAt: new Date().toISOString(),
+  };
 }

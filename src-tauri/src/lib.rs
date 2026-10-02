@@ -52,6 +52,7 @@ struct SummaryRequest {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct ArticleSummary {
+    title: String,
     summary: String,
     key_points: Vec<String>,
     model: String,

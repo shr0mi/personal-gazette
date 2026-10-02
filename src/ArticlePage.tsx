@@ -74,7 +74,7 @@ export default function ArticlePage({ fetchProps, extraction, text, onTextChange
           </div>
           <p className="field-hint model-hint">{modelError ?? `Using ${modelName}`}{modelError && <> <button className="text-button" onClick={onSettings} disabled={fetchProps.disabled}>Choose a model <ArrowUpRight size={14} /></button></>}</p>
           <p className="privacy-note">{mode === "cloud" ? "Summarizing sends the article text to your cloud provider. Provider charges may apply." : "Summarized by your local model, on your own device."}</p>
-          {(isSummarizing || refreshStage) && <p className="fetch-progress" role="status">{refreshStage === "fetching" ? "Fetching fresh article text…" : "Generating your summary and key points. This may take a few minutes…"}</p>}
+          {(isSummarizing || refreshStage) && <p className="fetch-progress" role="status">{refreshStage === "fetching" ? "Fetching fresh article text…" : "Generating your heading, summary and key points. This may take a few minutes…"}</p>}
           {summaryError && <p className="error-message" role="alert">{summaryError}</p>}
           {stale && <p className="stale-summary" role="status">You’ve edited the source text. Regenerate the summary before saving to include your changes.</p>}
           {summary ? <>
@@ -83,7 +83,7 @@ export default function ArticlePage({ fetchProps, extraction, text, onTextChange
               <div className="keypoints-column"><p className="eyebrow">02 / Key points</p><h3>What to take away.</h3><ol className="key-points">{summary.key_points.map((point, index) => <li key={index}><span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span><p>{point}</p></li>)}</ol></div>
             </div>
             <form className="save-article-form" onSubmit={onSave}>
-              <div className="save-title"><label htmlFor="article-title">A title for your collection</label><input id="article-title" aria-label="Saved article title" value={title} onChange={(event) => onTitleChange(event.target.value)} placeholder="Article title" maxLength={200} required disabled={fetchProps.disabled} /></div>
+              <div className="save-title"><label htmlFor="article-title">A title for your collection</label><input id="article-title" aria-label="Saved article title" aria-describedby="article-title-hint" value={title} onChange={(event) => onTitleChange(event.target.value)} placeholder="Article title" maxLength={200} required disabled={fetchProps.disabled} /><p id="article-title-hint" className="field-hint">Your model writes the heading. Edit it here to make it yours.</p></div>
               <div className="save-actions"><button type="submit" disabled={!canSave || !title.trim()}><Bookmark size={16} fill={savedArticle ? "currentColor" : "none"} />{savedArticle ? "Update saved article" : "Save article"}</button>
                 <button type="button" className={`secondary-button ${savedArticle?.isFavorite ? "is-favorite" : ""}`} onClick={onFavorite} disabled={!canSave || !title.trim()} aria-pressed={savedArticle?.isFavorite ?? false}><Star size={16} fill={savedArticle?.isFavorite ? "currentColor" : "none"} />{savedArticle?.isFavorite ? "Favorited" : "Favorite"}</button>
                 {savedArticle && <button type="button" className="icon-button remove-article" aria-label="Remove article from saved articles" onClick={onRemove} disabled={fetchProps.disabled || !!storageError}><Trash2 size={17} /></button>}</div>

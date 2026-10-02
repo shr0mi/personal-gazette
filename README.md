@@ -1,4 +1,4 @@
-# Local Summarizer
+# Personal Gazette
 
 A local-first summarizer with a React and TypeScript interface, a Tauri/Rust host, and a local FastAPI sidecar. Start on **Home**, paste a website URL, and click **Fetch article** to extract article text with Trafilatura on your device. The app opens **Article** and fetches the text immediately. Expand **Extracted text** to review and edit it, then click **Summarize article** to generate a summary and key points with your configured local or cloud model through LiteLLM.
 
@@ -58,7 +58,7 @@ Clicking **Summarize** in cloud mode sends the current edited article text to th
 
 ## Save articles
 
-After generating a summary, enter a title under **A title for your collection** and click **Save article**. Open **Saved articles** to browse cards, search by title, source, or summary, and filter favorites. Click a card to open its summary and key points on **Article**, including after restarting the app. The article link, title, summary, model details, and timestamps are stored in local device storage; extracted text and API keys are not saved with articles. Saving the same link again updates its existing entry. If you edit the extracted text, regenerate the summary before saving.
+Your model generates an article heading together with the summary and key points, using the same language as the article. The heading appears at the top of **Article** and under **A title for your collection**, where you can edit it before clicking **Save article**. Regenerating or refreshing updates an automatic heading while preserving your custom title. Open **Saved articles** to browse cards, search by title, source, or summary, and filter favorites. Click a card to open its summary and key points on **Article**, including after restarting the app. The article link, title, summary, model details, and timestamps are stored in local device storage; extracted text and API keys are not saved with articles. Saving the same link again updates its existing entry. If you edit the extracted text, regenerate the summary before saving.
 
 Click **Favorite** to star an article; a new article is saved at the same time. Favorites appear as cards on **Home** and come first on **Saved articles**. Click the star again to remove it from favorites while keeping it saved. Existing saved articles are retained and start without a favorite flag.
 
@@ -91,7 +91,7 @@ Errors return a JSON `detail`: `401` for an invalid token, `422` for invalid inp
 
 `POST /llm/models` accepts the active local model settings and returns `{"models": ["model-id"], "base_url": "http://127.0.0.1:8080/v1"}`.
 
-`POST /summarize` accepts `{"text": "Current edited article text", "settings": {"mode": "local", "provider": "llama_cpp", "model": "local-model", "base_url": "http://127.0.0.1:8080/v1", "api_key": "", "api_version": ""}}`. It returns `summary`, `key_points`, and the model/provider/mode used. All routes require the desktop token. Model calls time out after 180 seconds and do not retry automatically. Invalid output, unavailable servers, credentials, quotas, and context limits produce readable errors. The full text is sent without silent truncation; input is limited to 200,000 characters and the selected model's context window.
+`POST /summarize` accepts `{"text": "Current edited article text", "settings": {"mode": "local", "provider": "llama_cpp", "model": "local-model", "base_url": "http://127.0.0.1:8080/v1", "api_key": "", "api_version": ""}}`. It returns `title` (a nonempty heading of at most 200 characters), `summary`, `key_points`, and the model/provider/mode used. All routes require the desktop token. Model calls time out after 180 seconds and do not retry automatically. Invalid output, unavailable servers, credentials, quotas, and context limits produce readable errors. The full text is sent without silent truncation; input is limited to 200,000 characters and the selected model's context window.
 
 ## Verify changes
 
