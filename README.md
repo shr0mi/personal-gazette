@@ -1,6 +1,6 @@
 # Local Summarizer
 
-A local-first summarizer with a React and TypeScript interface, a Tauri/Rust host, and a local FastAPI sidecar. Paste a website URL and click **fetch** to extract article text with Trafilatura on your device. Expand **Extracted text** to review and edit it, then click **Summarize** to generate a summary and key points with your configured local or cloud model through LiteLLM.
+A local-first summarizer with a React and TypeScript interface, a Tauri/Rust host, and a local FastAPI sidecar. Start on **Home**, paste a website URL, and click **Fetch article** to extract article text with Trafilatura on your device. The app opens **Article** and fetches the text immediately. Expand **Extracted text** to review and edit it, then click **Summarize article** to generate a summary and key points with your configured local or cloud model through LiteLLM.
 
 ## Prerequisites
 
@@ -55,6 +55,16 @@ Choose **Ollama**, use `http://127.0.0.1:11434` (or enter `11434`), and click **
 Choose OpenAI, Anthropic, Google Gemini, OpenRouter, Azure OpenAI, or another OpenAI-compatible provider. Enter the exact model ID and your API key. OpenRouter IDs include the upstream provider (for example, `provider/model-name`). Azure also requires the resource endpoint, API version, and deployment name. A custom compatible provider requires an HTTPS API base URL, usually ending in `/v1`. Standard providers use their default endpoints unless you provide an override. See [LiteLLM's compatible endpoints](https://docs.litellm.ai/docs/providers/openai_compatible).
 
 Clicking **Summarize** in cloud mode sends the current edited article text to that provider and may incur charges. Local mode sends it only to your configured local server. Summarization is explicit so you can review the extracted text first. If you edit the text after generating a summary, the output is marked as out of date until you regenerate it.
+
+## Save articles
+
+After generating a summary, enter a title under **A title for your collection** and click **Save article**. Open **Saved articles** to browse cards, search by title, source, or summary, and filter favorites. Click a card to open its summary and key points on **Article**, including after restarting the app. The article link, title, summary, model details, and timestamps are stored in local device storage; extracted text and API keys are not saved with articles. Saving the same link again updates its existing entry. If you edit the extracted text, regenerate the summary before saving.
+
+Click **Favorite** to star an article; a new article is saved at the same time. Favorites appear as cards on **Home** and come first on **Saved articles**. Click the star again to remove it from favorites while keeping it saved. Existing saved articles are retained and start without a favorite flag.
+
+Opening a saved card shows its summary immediately without fetching. Its original text is not stored; use **Fetch article** on the article page to retrieve and edit the source again.
+
+Choose **Fetch & summarize again** on the saved article’s **Article** page to download fresh text and replace its saved summary using your current model settings. This needs an internet connection, a ready backend, and configured model settings. Cloud mode sends the fresh text to your provider and may incur charges. A failed fetch, summary, or storage write preserves the previous saved summary. Use the trash button on **Article** to remove an entry from the archive. Saved articles are specific to this device and are removed if you clear the app's storage.
 
 ## Build a desktop bundle
 

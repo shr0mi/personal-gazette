@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { Cloud, KeyRound, Server, ShieldCheck } from "lucide-react";
 import {
   activeSettings, cloudProviders, settingsError,
   type CloudProvider, type LLMPreferences, type LocalProvider, type ModelConnection,
@@ -58,18 +59,21 @@ export default function SettingsPage({ preferences, backendReady, onSave, onCanc
 
   return (
     <>
-      <h1>Model settings.</h1>
-      <p className="intro">Choose where your summary is generated. Local models run on your device; cloud models use your provider account.</p>
+      <div className="page-heading settings-heading"><p className="eyebrow accent">Behind the byline</p><h1>Your model.<br /><em>Your rules.</em></h1>
+      <p className="intro">Choose where your summaries take shape. Connect a local model or your preferred cloud provider.</p></div>
+      <div className="settings-layout">
       <form className="settings-card" onSubmit={save}>
+        <h2 className="visually-hidden">Model connection settings</h2>
+        <div className="settings-form-heading"><span className="eyebrow">01 / Model connection</span><Server size={20} strokeWidth={1.5} /></div>
         <fieldset className="mode-picker" disabled={isDiscovering}>
           <legend>Run the model</legend>
           <label className={`mode-option ${draft.mode === "local" ? "selected" : ""}`}>
             <input type="radio" name="llm-mode" value="local" checked={draft.mode === "local"} onChange={() => { setDraft({ ...draft, mode: "local" }); setError(null); }} />
-            <span>Local <small>llama.cpp or Ollama</small></span>
+            <span><Server size={18} strokeWidth={1.5} /> Local <small>llama.cpp or Ollama</small></span>
           </label>
           <label className={`mode-option ${draft.mode === "cloud" ? "selected" : ""}`}>
             <input type="radio" name="llm-mode" value="cloud" checked={draft.mode === "cloud"} onChange={() => { setDraft({ ...draft, mode: "cloud" }); setError(null); }} />
-            <span>Cloud <small>Your provider and API key</small></span>
+            <span><Cloud size={18} strokeWidth={1.5} /> Cloud <small>Your provider and API key</small></span>
           </label>
         </fieldset>
 
@@ -140,6 +144,12 @@ export default function SettingsPage({ preferences, backendReady, onSave, onCanc
           <button type="button" className="secondary-button" onClick={onCancel} disabled={isDiscovering}>Cancel</button>
         </div>
       </form>
+      <aside className="settings-aside"><p className="eyebrow">A note on your setup</p><h2>A model of<br />your own.</h2><p className="drop-cap">Your reading routine, your choice of engine. Switch between local and cloud whenever you need a different perspective.</p>
+        <div className="settings-aside-note"><ShieldCheck size={22} strokeWidth={1.5} /><h3>Keep it local.</h3><p>With a local model, article text is sent only to the server running on your device.</p></div>
+        <div className="settings-aside-note"><KeyRound size={22} strokeWidth={1.5} /><h3>Keys stay with you.</h3><p>API keys are kept in memory for this session. Your other preferences are saved on this device.</p></div>
+        <div className="settings-aside-footer"><span aria-hidden="true">✳</span><span>A thoughtful setup.<br />A better daily read.</span></div>
+      </aside>
+      </div>
     </>
   );
 }

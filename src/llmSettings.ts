@@ -95,7 +95,7 @@ export function persistPreferences(preferences: LLMPreferences): void {
   localStorage.setItem(storageKey, JSON.stringify({ mode: preferences.mode, local, cloud }));
 }
 
-export function modelLabel(settings: ModelConnection): string {
+export function modelLabel(settings: { provider: string; model: string }): string {
   const provider = settings.provider === "llama_cpp" ? "llama.cpp"
     : settings.provider === "ollama" ? "Ollama"
     : cloudProviders.find((entry) => entry.value === settings.provider)?.label ?? settings.provider;
