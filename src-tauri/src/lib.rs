@@ -158,6 +158,7 @@ async fn backend_summarize(
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // The API listens only on loopback. Let the OS select an available port.
             let listener = TcpListener::bind("127.0.0.1:0")?;

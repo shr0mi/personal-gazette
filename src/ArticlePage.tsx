@@ -1,6 +1,7 @@
 import type { ComponentProps, FormEvent } from "react";
 import { ArrowDown, ArrowUpRight, Bookmark, ChevronRight, FileText, LoaderCircle, RefreshCw, Star, Trash2 } from "lucide-react";
 import FetchForm from "./FetchForm";
+import ExternalLink from "./ExternalLink";
 import { articleDomain, formattedDate } from "./ArticleCards";
 import { modelLabel } from "./llmSettings";
 import type { SavedArticle, SummaryResult } from "./savedArticles";
@@ -46,7 +47,7 @@ export default function ArticlePage({ fetchProps, extraction, text, onTextChange
       <div className={`page-heading ${source ? "article-heading" : ""}`}>
         <p className="eyebrow accent">{savedArticle ? "From your personal archive" : "The article desk"}</p>
         <h1>{source ? title || "Untitled article" : <>Read between<br /><em>the lines.</em></>}</h1>
-        {source ? <div className="article-byline"><a href={source} target="_blank" rel="noreferrer">{articleDomain(source)} <ArrowUpRight size={14} /></a><span>{savedArticle ? `Saved ${formattedDate(savedArticle.savedAt)}` : `${wordCount.toLocaleString()} words extracted`}</span>{savedArticle?.isFavorite && <span className="accent"><Star size={12} fill="currentColor" /> Favorite</span>}</div>
+        {source ? <div className="article-byline"><ExternalLink href={source} aria-label={`Open original article on ${articleDomain(source)} in your browser`}>{articleDomain(source)} <ArrowUpRight size={14} /></ExternalLink><span>{savedArticle ? `Saved ${formattedDate(savedArticle.savedAt)}` : `${wordCount.toLocaleString()} words extracted`}</span>{savedArticle?.isFavorite && <span className="accent"><Star size={12} fill="currentColor" /> Favorite</span>}</div>
           : <p className="intro">One link. A clearer picture. Your next good read starts here.</p>}
       </div>
       <section className="article-fetch"><FetchForm {...fetchProps} /></section>

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { BookOpen, Menu, X } from "lucide-react";
 import HomePage from "./HomePage";
+import ExternalLink from "./ExternalLink";
 import ArticlePage from "./ArticlePage";
 import SettingsPage from "./SettingsPage";
 import SavedArticlesPage from "./SavedArticlesPage";
@@ -250,7 +251,19 @@ function App() {
           : page === "settings" ? <SettingsPage preferences={preferences} backendReady={health !== null} onSave={saveSettings} onCancel={() => navigate(settingsReturnPage)} />
           : <ArticlePage fetchProps={fetchProps} extraction={extraction} text={text} onTextChange={(next) => { setText(next); setSaveFeedback(null); }} fetchVersion={fetchVersion} summary={articleSummary} title={articleTitle} onTitleChange={(next) => { setArticleTitle(next); setSaveFeedback(null); }} savedArticle={currentSavedArticle} backendReady={health !== null} modelError={settingsError(preferences)} modelName={modelLabel(selectedModel)} mode={preferences.mode} isSummarizing={isSummarizing} refreshStage={refreshProgress?.stage ?? null} summaryError={summaryError} storageError={savedState.error} feedback={saveFeedback} onSummarize={() => void generateSummary()} onSave={saveCurrentArticle} onFavorite={favoriteCurrentArticle} onRefresh={() => void refreshArticle()} onRemove={removeCurrentArticle} onSettings={openSettings} onSaved={() => navigate("saved")} />}
       </main>
-      <footer className="site-footer"><span className="footer-brand">The Local Summarizer.</span><span>Your ideas, collected. Your perspective, preserved.</span><span>End of edition <span aria-hidden="true">✦</span></span></footer>
+      <footer className="site-footer">
+        <span className="footer-brand">The Local Summarizer.</span>
+        <div className="footer-details">
+          <span className="footer-open-source">Free and Open Source App</span>
+          <span className="footer-credit">By shr0mi</span>
+          <ExternalLink className="footer-github" href="https://github.com/shr0mi/local-summarizer" aria-label="Open local-summarizer on GitHub in your browser">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 0C5.37 0 0 5.373 0 12c0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.043-1.61-4.043-1.61-.546-1.387-1.333-1.756-1.333-1.756-1.09-.745.083-.729.083-.729 1.205.084 1.838 1.237 1.838 1.237 1.07 1.835 2.809 1.305 3.494.998.108-.776.418-1.305.762-1.605-2.665-.304-5.467-1.334-5.467-5.931 0-1.31.469-2.381 1.236-3.221-.124-.303-.536-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.52 11.52 0 0 1 12 5.801c1.02.005 2.045.138 3.003.404 2.291-1.552 3.297-1.23 3.297-1.23.655 1.652.243 2.873.119 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222 0 1.606-.015 2.898-.015 3.293 0 .322.216.694.825.576C20.565 21.796 24 17.3 24 12c0-6.627-5.373-12-12-12Z" />
+            </svg>
+            GitHub
+          </ExternalLink>
+        </div>
+      </footer>
     </div>
   );
 }
