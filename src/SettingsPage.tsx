@@ -9,18 +9,20 @@ import {
 type Props = {
   preferences: LLMPreferences;
   backendReady: boolean;
-  onSave: (preferences: LLMPreferences) => void;
+  isSaving: boolean;
+  onSave: (preferences: LLMPreferences) => Promise<void>;
   onCancel: () => void;
 };
 type ModelList = { models: string[]; base_url: string };
 
-export default function SettingsPage({ preferences, backendReady, onSave, onCancel }: Props) {
+export default function SettingsPage({ preferences, backendReady, isSaving, onSave, onCancel }: Props) {
   const [draft, setDraft] = useState<LLMPreferences>(() => structuredClone(preferences));
   const [models, setModels] = useState<string[]>([]);
   const [isDiscovering, setIsDiscovering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [discoveryMessage, setDiscoveryMessage] = useState<string | null>(null);
   const connection = draft[draft.mode];
+  const disabled = isDiscovering || isSaving;
 
   const updateConnection = (change: Partial<ModelConnection>) => {
     setDraft((current) => ({ ...current, [current.mode]: { ...current[current.mode], ...change } }));
@@ -52,9 +54,10 @@ export default function SettingsPage({ preferences, backendReady, onSave, onCanc
 
   const save = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (disabled) return;
     const validationError = settingsError(draft);
     if (validationError) { setError(validationError); return; }
-    onSave(draft);
+    void onSave(draft);
   };
 
   return (
@@ -65,7 +68,7 @@ export default function SettingsPage({ preferences, backendReady, onSave, onCanc
       <form className="settings-card" onSubmit={save}>
         <h2 className="visually-hidden">Model connection settings</h2>
         <div className="settings-form-heading"><span className="eyebrow">01 / Model connection</span><Server size={20} strokeWidth={1.5} /></div>
-        <fieldset className="mode-picker" disabled={isDiscovering}>
+        <fieldset className="mode-picker" disabled={disabled}>
           <legend>Run the model</legend>
           <label className={`mode-option ${draft.mode === "local" ? "selected" : ""}`}>
             <input type="radio" name="llm-mode" value="local" checked={draft.mode === "local"} onChange={() => { setDraft({ ...draft, mode: "local" }); setError(null); }} />
@@ -77,7 +80,7 @@ export default function SettingsPage({ preferences, backendReady, onSave, onCanc
           </label>
         </fieldset>
 
-        <fieldset className="connection-fields" disabled={isDiscovering}>
+        <fieldset className="connection-fields" disabled={disabled}>
           <legend className="visually-hidden">Connection details</legend>
           <div className="settings-field">
             <label htmlFor="llm-provider">{draft.mode === "local" ? "Local server" : "Cloud provider"}</label>
@@ -124,7 +127,7 @@ export default function SettingsPage({ preferences, backendReady, onSave, onCanc
             <input id="llm-api-key" type="password" value={connection.api_key} onChange={(event) => updateConnection({ api_key: event.target.value })}
               placeholder={draft.mode === "local" ? "Only if your local server requires a key" : "Your provider API key"}
               required={draft.mode === "cloud"} autoComplete="off" spellCheck={false} aria-describedby="key-hint" />
-            <p id="key-hint" className="field-hint">API keys stay in memory for this session. Re-enter them after restarting the app.</p>
+            <p id="key-hint" className="field-hint">API keys are saved on this device and restored when you reopen the app.</p>
           </div>
 
           {connection.provider === "azure" && <div className="settings-field">
@@ -140,13 +143,13 @@ export default function SettingsPage({ preferences, backendReady, onSave, onCanc
         <p className="privacy-note">{draft.mode === "local" ? "Article text is sent only to the local server you choose."
           : "Summarizing sends the current article text to this cloud provider and may incur usage charges."}</p>
         <div className="settings-actions">
-          <button type="submit" disabled={isDiscovering}>Save settings</button>
-          <button type="button" className="secondary-button" onClick={onCancel} disabled={isDiscovering}>Cancel</button>
+          <button type="submit" disabled={disabled}>{isSaving ? "Saving…" : "Save settings"}</button>
+          <button type="button" className="secondary-button" onClick={onCancel} disabled={disabled}>Cancel</button>
         </div>
       </form>
       <aside className="settings-aside"><p className="eyebrow">A note on your setup</p><h2>A model of<br />your own.</h2><p className="drop-cap">Your reading routine, your choice of engine. Switch between local and cloud whenever you need a different perspective.</p>
         <div className="settings-aside-note"><ShieldCheck size={22} strokeWidth={1.5} /><h3>Keep it local.</h3><p>With a local model, article text is sent only to the server running on your device.</p></div>
-        <div className="settings-aside-note"><KeyRound size={22} strokeWidth={1.5} /><h3>Keys stay with you.</h3><p>API keys are kept in memory for this session. Your other preferences are saved on this device.</p></div>
+        <div className="settings-aside-note"><KeyRound size={22} strokeWidth={1.5} /><h3>Keys stay with you.</h3><p>API keys are saved locally with reversible encryption. This deters casual inspection; someone with access to the app's stored data can still recover them.</p></div>
         <div className="settings-aside-footer"><span aria-hidden="true">✳</span><span>A thoughtful setup.<br />A better daily read.</span></div>
       </aside>
       </div>

@@ -6,7 +6,7 @@ import ExternalLink from "./ExternalLink";
 import ArticlePage from "./ArticlePage";
 import SettingsPage from "./SettingsPage";
 import SavedArticlesPage from "./SavedArticlesPage";
-import { activeSettings, loadPreferences, modelLabel, persistPreferences, settingsError, type LLMPreferences } from "./llmSettings";
+import { activeSettings, defaultPreferences, loadPreferences, modelLabel, persistPreferences, settingsError, type LLMPreferences } from "./llmSettings";
 import { articleUrl, loadSavedArticles, persistSavedArticles, refreshSavedArticle, saveArticle, sortedArticles, titleAfterSummary, titleFromUrl, toggleArticleFavorite, type SavedArticle, type SummaryResult } from "./savedArticles";
 import "./App.css";
 
@@ -34,7 +34,9 @@ function App() {
   const [page, setPage] = useState<Page>(currentPage);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settingsReturnPage, setSettingsReturnPage] = useState<Exclude<Page, "settings">>("home");
-  const [preferences, setPreferences] = useState<LLMPreferences>(loadPreferences);
+  const [preferences, setPreferences] = useState<LLMPreferences>(() => structuredClone(defaultPreferences));
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
@@ -48,10 +50,18 @@ function App() {
   const [saveFeedback, setSaveFeedback] = useState<Feedback>(null);
   const [libraryFeedback, setLibraryFeedback] = useState<Feedback>(null);
   const [refreshProgress, setRefreshProgress] = useState<{ id: string; stage: "fetching" | "summarizing" } | null>(null);
-  const isBusy = isFetching || isSummarizing || refreshProgress !== null;
+  const isBusy = isFetching || isSummarizing || refreshProgress !== null || isLoadingPreferences || isSavingSettings;
   const selectedModel = activeSettings(preferences);
   const currentSavedArticle = savedState.articles.find((article) => extraction ? article.url === articleUrl(extraction.url) : article.id === openedArticleId) ?? null;
   const favorites = sortedArticles(savedState.articles).filter((article) => article.isFavorite);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadPreferences().then((loaded) => {
+      if (!cancelled) { setPreferences(loaded); setIsLoadingPreferences(false); }
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const onHashChange = () => {
@@ -114,11 +124,14 @@ function App() {
     finally { setIsFetching(false); }
   };
 
-  const saveSettings = (next: LLMPreferences) => {
+  const saveSettings = async (next: LLMPreferences) => {
+    if (isLoadingPreferences || isSavingSettings) return;
+    setIsSavingSettings(true);
     setPreferences(next);
     setSummaryError(null);
-    try { persistPreferences(next); setSettingsMessage("Model settings saved. API keys stay in this session."); }
-    catch { setSettingsMessage("Settings are active for this session. Device storage was unavailable."); }
+    try { await persistPreferences(next); setSettingsMessage("Model settings and API keys saved on this device."); }
+    catch { setSettingsMessage("Settings are active for this session, but could not be saved on this device. Try saving again in Settings."); }
+    finally { setIsSavingSettings(false); }
     navigate(settingsReturnPage);
   };
 
@@ -252,7 +265,7 @@ function App() {
         {page === "home" && libraryFeedback?.error && <p className="error-message" role="alert">{libraryFeedback.error}</p>}
         {page === "home" ? <HomePage fetchProps={fetchProps} favorites={favorites} storageError={savedState.error} onOpen={openArticle} onFavorite={toggleFavorite} onSaved={() => navigate("saved")} />
           : page === "saved" ? <SavedArticlesPage articles={savedState.articles} storageError={savedState.error} disabled={isBusy} feedback={libraryFeedback} onOpen={openArticle} onFavorite={toggleFavorite} onArticle={() => navigate("article")} />
-          : page === "settings" ? <SettingsPage preferences={preferences} backendReady={health !== null} onSave={saveSettings} onCancel={() => navigate(settingsReturnPage)} />
+          : page === "settings" ? isLoadingPreferences ? <p role="status">Loading model settings…</p> : <SettingsPage preferences={preferences} backendReady={health !== null} isSaving={isSavingSettings} onSave={saveSettings} onCancel={() => navigate(settingsReturnPage)} />
           : <ArticlePage fetchProps={fetchProps} extraction={extraction} text={text} onTextChange={(next) => { setText(next); setSaveFeedback(null); }} fetchVersion={fetchVersion} summary={articleSummary} title={articleTitle} onTitleChange={(next) => { setArticleTitle(next); setSaveFeedback(null); }} savedArticle={currentSavedArticle} backendReady={health !== null} modelError={settingsError(preferences)} modelName={modelLabel(selectedModel)} mode={preferences.mode} isSummarizing={isSummarizing} refreshStage={refreshProgress?.stage ?? null} summaryError={summaryError} storageError={savedState.error} feedback={saveFeedback} onSummarize={() => void generateSummary()} onSave={saveCurrentArticle} onFavorite={favoriteCurrentArticle} onRefresh={() => void refreshArticle()} onRemove={removeCurrentArticle} onSettings={openSettings} onSaved={() => navigate("saved")} />}
       </main>
       <footer className="site-footer">
