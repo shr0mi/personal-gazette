@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./logo.png" alt="Personal Gazette logo" width="160" height="160" />
+  <img src="./logo.png" alt="Personal Gazette logo" width="100" height="100" />
   <h1>Personal Gazette</h1>
   <p>A personal newspaper for saving articles, summarizing them with AI, and remembering what matters.</p>
 </div>
@@ -44,7 +44,7 @@ To get started, configure a model in **Settings**, paste a link on **Home**, and
 
 ### Your data
 
-Saved articles and non-secret model preferences use local device storage. API keys stay in memory for the current session and must be entered again after restarting. Original extracted text is kept only for the current session; reopen the source with **Fetch article** when you need it again. Clearing the app's storage removes your archive.
+Saved articles and model preferences use local device storage. API keys are saved when you click **Save settings** and restored automatically after restarting. They use AES-GCM encryption with a randomly generated key stored alongside the encrypted credentials. This deters casual inspection of stored text, but someone with access to the app's data can recover the keys. Original extracted text is kept only for the current session; reopen the source with **Fetch article** when you need it again. Clearing the app's storage removes your archive, preferences, and saved API keys.
 
 Fetching an article requires an internet connection. Local summarization sends text only to your configured local server; cloud summarization sends it to the selected provider when you request a summary. Pages that require a login or JavaScript, or that block automated downloads, may not be extractable.
 
@@ -105,7 +105,7 @@ In Settings, choose **Ollama**, enter `http://127.0.0.1:11434` or just `11434`, 
 | Local API | Python, FastAPI, Uvicorn, Pydantic |
 | Article extraction | Trafilatura |
 | Model integration | LiteLLM and HTTPX |
-| Storage | WebView `localStorage` for saved articles and non-secret preferences |
+| Storage | WebView `localStorage` for saved articles, model preferences, and API keys encrypted with Web Crypto |
 | Packaging | PyInstaller bundles the Python API as a Tauri sidecar |
 | Tests | Node's built-in test runner and Python `unittest` |
 
