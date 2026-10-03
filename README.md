@@ -4,6 +4,31 @@
   <p>A personal newspaper for saving articles, summarizing them with AI, and remembering what matters.</p>
 </div>
 
+## Screenshots
+
+<table>
+  <tr>
+    <td width="50%" align="center">
+      <strong>Home</strong><br />
+      <a href="./screenshots/HomePage.png"><img src="./screenshots/HomePage.png" alt="Home page with article fetching and favorite articles" width="100%" /></a>
+    </td>
+    <td width="50%" align="center">
+      <strong>Article summary</strong><br />
+      <a href="./screenshots/ArticlesPage.png"><img src="./screenshots/ArticlesPage.png" alt="Article page with an AI summary and key points" width="100%" /></a>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center">
+      <strong>Saved articles</strong><br />
+      <a href="./screenshots/SavedArticlesPage.png"><img src="./screenshots/SavedArticlesPage.png" alt="Saved articles page with the searchable personal archive" width="100%" /></a>
+    </td>
+    <td width="50%" align="center">
+      <strong>Settings</strong><br />
+      <a href="./screenshots/SettingsPage.png"><img src="./screenshots/SettingsPage.png" alt="Settings page for local and cloud model connections" width="100%" /></a>
+    </td>
+  </tr>
+</table>
+
 ## What it does
 
 Personal Gazette is a local-first desktop app for knowledge workers who want to keep the ideas they find online. Its newspaper-inspired interface turns your reading into a searchable personal archive.
