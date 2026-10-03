@@ -1,7 +1,7 @@
 <div align="center">
   <img src="./logo.png" alt="Personal Gazette logo" width="100" height="100" />
   <h1>Personal Gazette</h1>
-  <p>A personal newspaper for saving articles, summarizing them with AI, and remembering what matters.</p>
+  <p>A personal newspaper for saving articles, writing your own summaries or using AI, and remembering what matters.</p>
 </div>
 
 ## Screenshots
@@ -33,14 +33,16 @@
 
 Personal Gazette is a local-first desktop app for knowledge workers who want to keep the ideas they find online. Its newspaper-inspired interface turns your reading into a searchable personal archive.
 
-- **Extract articles:** paste a URL to fetch the main article text, then review or edit it before summarizing.
-- **Distill the key ideas:** generate a concise summary, key points, and an editable heading in the article's language.
-- **Build your archive:** save the source link, title, summary, key points, and model details on your device. Saving the same link updates its existing entry.
+- **Extract articles:** paste a URL on Home to fetch the main article text and open **Edit**.
+- **Write to remember:** write and edit your own summary, key points, and heading without configuring an AI model. Key points are optional; type a point and press **Enter** or **Add** to place it in the numbered list above the input. Edit or remove individual points from that list.
+- **Get an AI draft:** click **AI generate** to replace the summary and key points with a generated draft in the article's language, then edit it before saving. Failed generation leaves your notes intact. The writing encouragement disappears after successful AI generation.
+- **Build your archive:** save the source link, title, summary, key points, and AI model details when applicable on your device. Saving the same link updates its existing entry.
 - **Find what matters:** search saved articles by title, source, or summary. Favorite articles to bring them to the top of your library and onto Home.
-- **Revisit and refresh:** reopen saved summaries after restarting the app, or fetch and summarize an article again with your current model settings.
+- **Read and edit separately:** saved articles open in **Article**, a clean reading view with the heading, source link, summary, and numbered key points. Click **Edit article** to change the heading or notes, or generate a new AI draft. Saving returns you to the reading view; **View article** previews your draft without saving.
+- **Revisit and refresh:** reopen saved summaries after restarting the app. In **Edit**, **AI generate** fetches the article again when needed; save the resulting draft when you’re ready.
 - **Choose your model:** use a model running on your computer or connect your preferred cloud provider.
 
-To get started, configure a model in **Settings**, paste a link on **Home**, and click **Fetch article**. Review **Extracted text**, click **Summarize article**, adjust the title if needed, and click **Save article**.
+To get started, paste a link on **Home** and click **Fetch article**. In **Edit**, review **Extracted text**, write your summary and key points, adjust the title, and click **Save article** to open the reading view. If you prefer an AI draft, configure a model in **Settings**, click **AI generate** in **Edit**, and edit the result in the same fields. Reopen any saved article to read it in **Article**, then click **Edit article** when you want to make changes.
 
 ### Your data
 
@@ -117,7 +119,7 @@ The React interface calls Tauri commands, which forward requests to a local Fast
 - **Rust** with a desktop host target available through `rustc --print host-tuple`.
 - **Python 3.11 or newer**, with `venv` and `pip`.
 - The [Tauri desktop prerequisites](https://v2.tauri.app/start/prerequisites/) for your operating system.
-- A running local model server or cloud provider credentials to generate summaries.
+- A running local model server or cloud provider credentials to generate AI drafts. Writing and saving your own summaries does not require a model.
 
 ### Run the app
 

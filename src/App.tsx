@@ -4,18 +4,19 @@ import { BookOpen, Menu, X } from "lucide-react";
 import HomePage from "./HomePage";
 import ExternalLink from "./ExternalLink";
 import ArticlePage from "./ArticlePage";
+import ArticleEditPage from "./ArticleEditPage";
 import SettingsPage from "./SettingsPage";
 import SavedArticlesPage from "./SavedArticlesPage";
 import { activeSettings, defaultPreferences, loadPreferences, modelLabel, persistPreferences, settingsError, type LLMPreferences } from "./llmSettings";
-import { articleUrl, loadSavedArticles, persistSavedArticles, refreshSavedArticle, saveArticle, sortedArticles, titleAfterSummary, titleFromUrl, toggleArticleFavorite, type SavedArticle, type SummaryResult } from "./savedArticles";
+import { articleUrl, loadSavedArticles, persistSavedArticles, saveArticle, sortedArticles, titleAfterSummary, titleFromUrl, toggleArticleFavorite, type ArticleSummary, type SavedArticle, type SummaryResult } from "./savedArticles";
 import "./App.css";
 
-type Page = "home" | "article" | "saved" | "settings";
+type Page = "home" | "article" | "edit" | "saved" | "settings";
 type BackendHealth = { status: string; service: string };
 type ExtractedWebsite = { url: string; text: string };
-type ArticleSummary = SummaryResult & { inputText: string };
+type ArticleDraft = ArticleSummary & { inputText: string };
 type Feedback = { error?: string; message?: string } | null;
-const pages: { id: Page; label: string }[] = [{ id: "home", label: "Home" }, { id: "saved", label: "Saved articles" }, { id: "article", label: "Article" }, { id: "settings", label: "Settings" }];
+const pages: { id: Page; label: string }[] = [{ id: "home", label: "Home" }, { id: "saved", label: "Saved articles" }, { id: "article", label: "Article" }, { id: "edit", label: "Edit" }, { id: "settings", label: "Settings" }];
 
 function currentPage(): Page {
   const hash = window.location.hash.replace(/^#\/?/u, "");
@@ -38,9 +39,9 @@ function App() {
   const [isLoadingPreferences, setIsLoadingPreferences] = useState(true);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
-  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [generationStage, setGenerationStage] = useState<"fetching" | "summarizing" | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
-  const [articleSummary, setArticleSummary] = useState<ArticleSummary | null>(null);
+  const [articleSummary, setArticleSummary] = useState<ArticleDraft | null>(null);
   const [articleTitle, setArticleTitle] = useState("");
   const [openedArticleId, setOpenedArticleId] = useState<string | null>(null);
   const [savedState, setSavedState] = useState<{ articles: SavedArticle[]; error: string | null }>(() => {
@@ -49,8 +50,7 @@ function App() {
   });
   const [saveFeedback, setSaveFeedback] = useState<Feedback>(null);
   const [libraryFeedback, setLibraryFeedback] = useState<Feedback>(null);
-  const [refreshProgress, setRefreshProgress] = useState<{ id: string; stage: "fetching" | "summarizing" } | null>(null);
-  const isBusy = isFetching || isSummarizing || refreshProgress !== null || isLoadingPreferences || isSavingSettings;
+  const isBusy = isFetching || generationStage !== null || isLoadingPreferences || isSavingSettings;
   const selectedModel = activeSettings(preferences);
   const currentSavedArticle = savedState.articles.find((article) => extraction ? article.url === articleUrl(extraction.url) : article.id === openedArticleId) ?? null;
   const favorites = sortedArticles(savedState.articles).filter((article) => article.isFavorite);
@@ -100,6 +100,7 @@ function App() {
     window.scrollTo({ top: 0, behavior: "instant" });
   };
   const openSettings = () => navigate("settings");
+  const editCurrentArticle = () => { setSaveFeedback(null); navigate("edit"); };
 
   const fetchWebsite = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -107,17 +108,18 @@ function App() {
     const websiteUrl = url.trim();
     try { articleUrl(websiteUrl); }
     catch { setFetchError("Enter a valid http:// or https:// website link."); return; }
-    navigate("article");
+    navigate("edit");
     setIsFetching(true);
     setFetchError(null);
     setSaveFeedback(null);
     try {
       const result = await invoke<ExtractedWebsite>("backend_extract", { url: websiteUrl });
+      const existing = savedState.articles.find((article) => article.url === articleUrl(result.url));
       setExtraction(result);
       setText(result.text);
-      setOpenedArticleId(null);
-      setArticleSummary(null);
-      setArticleTitle(savedState.articles.find((article) => article.url === articleUrl(result.url))?.title ?? titleFromUrl(result.url));
+      setOpenedArticleId(existing?.id ?? null);
+      setArticleSummary(existing ? { ...existing.summary, inputText: "" } : { summary: "", key_points: [], mode: "manual", inputText: result.text });
+      setArticleTitle(existing?.title ?? titleFromUrl(result.url));
       setSummaryError(null);
       setFetchVersion((version) => version + 1);
     } catch (cause) { setFetchError(String(cause)); }
@@ -136,21 +138,29 @@ function App() {
   };
 
   const generateSummary = async () => {
-    if (!health || isBusy || !text.trim()) return;
+    const source = extraction?.url ?? currentSavedArticle?.url;
+    if (!health || isBusy || !source || (extraction && !text.trim())) return;
     const validationError = settingsError(preferences);
     if (validationError) { setSummaryError(validationError); return; }
-    setIsSummarizing(true);
+    setGenerationStage(extraction ? "summarizing" : "fetching");
     setSummaryError(null);
     setSaveFeedback(null);
-    const inputText = text;
     try {
-      const result = await invoke<SummaryResult & { title: string }>("backend_summarize", { text: inputText, settings: activeSettings(preferences) });
-      if (extraction) {
-        setArticleTitle(titleAfterSummary(articleTitle, articleSummary ?? currentSavedArticle?.summary ?? null, result, extraction.url));
+      let inputText = text;
+      if (!extraction) {
+        const extracted = await invoke<ExtractedWebsite>("backend_extract", { url: source });
+        if (!extracted.text.trim()) throw new Error("No readable article text was found.");
+        inputText = extracted.text;
+        setExtraction(extracted);
+        setText(inputText);
+        setFetchVersion((version) => version + 1);
+        setGenerationStage("summarizing");
       }
+      const result = await invoke<SummaryResult & { title: string }>("backend_summarize", { text: inputText, settings: activeSettings(preferences) });
+      setArticleTitle(titleAfterSummary(articleTitle, articleSummary ?? currentSavedArticle?.summary ?? null, result, source));
       setArticleSummary({ ...result, inputText });
     } catch (cause) { setSummaryError(String(cause)); }
-    finally { setIsSummarizing(false); }
+    finally { setGenerationStage(null); }
   };
 
   const writeArticles = (next: SavedArticle[], error: string): boolean => {
@@ -161,12 +171,16 @@ function App() {
   const saveCurrentArticle = (event?: FormEvent<HTMLFormElement>, favorite = false) => {
     event?.preventDefault();
     const source = extraction?.url ?? currentSavedArticle?.url;
-    if (!source || !articleSummary || articleSummary.inputText !== text || isBusy || savedState.error || !articleTitle.trim()) return;
+    if (!source || !articleSummary?.summary.trim() || isBusy || savedState.error || !articleTitle.trim()) return;
     let next = saveArticle(savedState.articles, source, articleTitle, articleSummary);
     if (favorite) next = next.map((article, index) => index === 0 ? { ...article, isFavorite: true } : article);
     if (writeArticles(next, "Could not save the article. Device storage may be full or unavailable. Your summary is still here; try again.")) {
+      setOpenedArticleId(next[0].id);
+      setArticleTitle(next[0].title);
+      setArticleSummary({ ...next[0].summary, inputText: articleSummary.inputText });
       setSaveFeedback({ message: favorite ? "Saved and added to your favorites." : "Article and summary saved on this device." });
       setLibraryFeedback(null);
+      navigate("article");
     }
   };
 
@@ -196,34 +210,6 @@ function App() {
     setSaveFeedback(null);
     setFetchVersion((version) => version + 1);
     navigate("article");
-  };
-
-  const refreshArticle = async () => {
-    const article = currentSavedArticle;
-    if (!article || !health || isBusy || savedState.error) return;
-    const validationError = settingsError(preferences);
-    if (validationError) { setSummaryError(validationError); return; }
-    const settings = activeSettings(preferences);
-    setRefreshProgress({ id: article.id, stage: "fetching" });
-    setSaveFeedback(null);
-    setSummaryError(null);
-    try {
-      const refreshed = await refreshSavedArticle({ ...article, title: articleTitle.trim() || article.title }, {
-        extract: (articleLink) => invoke<ExtractedWebsite>("backend_extract", { url: articleLink }),
-        summarize: (freshText) => {
-          setRefreshProgress({ id: article.id, stage: "summarizing" });
-          return invoke<SummaryResult>("backend_summarize", { text: freshText, settings });
-        },
-      });
-      const next = [refreshed, ...savedState.articles.filter((entry) => entry.id !== article.id)];
-      if (writeArticles(next, "Could not store the new summary. Your previous saved summary has been kept.")) {
-        setArticleTitle(refreshed.title);
-        setArticleSummary({ ...refreshed.summary, inputText: "" });
-        setSaveFeedback({ message: "Fresh summary saved." });
-      }
-    } catch (cause) {
-      setSummaryError(`${cause instanceof Error ? cause.message : String(cause)} Your previous saved summary has been kept.`);
-    } finally { setRefreshProgress(null); }
   };
 
   const removeCurrentArticle = () => {
@@ -264,9 +250,10 @@ function App() {
         {settingsMessage && <div className="settings-notice" role="status"><span>{settingsMessage}</span><button className="icon-button" aria-label="Dismiss settings message" onClick={() => setSettingsMessage(null)}><X size={16} /></button></div>}
         {page === "home" && libraryFeedback?.error && <p className="error-message" role="alert">{libraryFeedback.error}</p>}
         {page === "home" ? <HomePage fetchProps={fetchProps} favorites={favorites} storageError={savedState.error} onOpen={openArticle} onFavorite={toggleFavorite} onSaved={() => navigate("saved")} />
-          : page === "saved" ? <SavedArticlesPage articles={savedState.articles} storageError={savedState.error} disabled={isBusy} feedback={libraryFeedback} onOpen={openArticle} onFavorite={toggleFavorite} onArticle={() => navigate("article")} />
+          : page === "saved" ? <SavedArticlesPage articles={savedState.articles} storageError={savedState.error} disabled={isBusy} feedback={libraryFeedback} onOpen={openArticle} onFavorite={toggleFavorite} onNewArticle={editCurrentArticle} />
           : page === "settings" ? isLoadingPreferences ? <p role="status">Loading model settings…</p> : <SettingsPage preferences={preferences} backendReady={health !== null} isSaving={isSavingSettings} onSave={saveSettings} onCancel={() => navigate(settingsReturnPage)} />
-          : <ArticlePage fetchProps={fetchProps} extraction={extraction} text={text} onTextChange={(next) => { setText(next); setSaveFeedback(null); }} fetchVersion={fetchVersion} summary={articleSummary} title={articleTitle} onTitleChange={(next) => { setArticleTitle(next); setSaveFeedback(null); }} savedArticle={currentSavedArticle} backendReady={health !== null} modelError={settingsError(preferences)} modelName={modelLabel(selectedModel)} mode={preferences.mode} isSummarizing={isSummarizing} refreshStage={refreshProgress?.stage ?? null} summaryError={summaryError} storageError={savedState.error} feedback={saveFeedback} onSummarize={() => void generateSummary()} onSave={saveCurrentArticle} onFavorite={favoriteCurrentArticle} onRefresh={() => void refreshArticle()} onRemove={removeCurrentArticle} onSettings={openSettings} onSaved={() => navigate("saved")} />}
+          : page === "article" ? <ArticlePage source={extraction?.url ?? currentSavedArticle?.url ?? null} title={articleTitle} summary={articleSummary} savedArticle={currentSavedArticle} disabled={isBusy} onEdit={editCurrentArticle} onSaved={() => navigate("saved")} />
+          : <ArticleEditPage fetchProps={fetchProps} extraction={extraction} text={text} onTextChange={(next) => { setText(next); setSaveFeedback(null); }} fetchVersion={fetchVersion} summary={articleSummary} onSummaryChange={(next) => { setArticleSummary((draft) => draft ? { ...draft, summary: next } : draft); setSaveFeedback(null); }} onKeyPointsChange={(next) => { setArticleSummary((draft) => draft ? { ...draft, key_points: next } : draft); setSaveFeedback(null); }} title={articleTitle} onTitleChange={(next) => { setArticleTitle(next); setSaveFeedback(null); }} savedArticle={currentSavedArticle} backendReady={health !== null} modelError={settingsError(preferences)} modelName={modelLabel(selectedModel)} mode={preferences.mode} generationStage={generationStage} summaryError={summaryError} storageError={savedState.error} feedback={saveFeedback} onSummarize={() => void generateSummary()} onSave={saveCurrentArticle} onFavorite={favoriteCurrentArticle} onRemove={removeCurrentArticle} onSettings={openSettings} onSaved={() => navigate("saved")} onView={() => navigate("article")} />}
       </main>
       <footer className="site-footer">
         <span className="footer-brand">The Personal Gazette.</span>

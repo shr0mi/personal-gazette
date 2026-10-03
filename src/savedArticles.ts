@@ -8,11 +8,20 @@ export type SummaryResult = {
   provider: string;
 };
 
+export type ArticleSummary = SummaryResult | {
+  title?: never;
+  summary: string;
+  key_points: string[];
+  mode: "manual";
+  model?: never;
+  provider?: never;
+};
+
 export type SavedArticle = {
   id: string;
   url: string;
   title: string;
-  summary: SummaryResult;
+  summary: ArticleSummary;
   savedAt: string;
   updatedAt: string;
   isFavorite: boolean;
@@ -38,8 +47,11 @@ export function titleFromUrl(value: string): string {
   }
 }
 
-function summaryFields(result: SummaryResult): SummaryResult {
+function summaryFields(result: ArticleSummary): ArticleSummary {
   // Persist only the result, never extracted text or connection credentials.
+  if (result.mode === "manual") {
+    return { summary: result.summary, key_points: [...result.key_points], mode: "manual" };
+  }
   return {
     ...(result.title !== undefined ? { title: result.title } : {}),
     summary: result.summary,
@@ -51,7 +63,7 @@ function summaryFields(result: SummaryResult): SummaryResult {
 }
 
 export function titleAfterSummary(
-  title: string, previous: SummaryResult | null, next: SummaryResult, url: string,
+  title: string, previous: ArticleSummary | null, next: SummaryResult, url: string,
 ): string {
   const previousTitle = previous?.title ?? titleFromUrl(url);
   // Update automatic headings, keeping the reader's own title across generations.
@@ -59,7 +71,7 @@ export function titleAfterSummary(
 }
 
 export function saveArticle(
-  articles: SavedArticle[], url: string, title: string, summary: SummaryResult,
+  articles: SavedArticle[], url: string, title: string, summary: ArticleSummary,
 ): SavedArticle[] {
   const normalizedUrl = articleUrl(url);
   const existing = articles.find((article) => article.url === normalizedUrl);
@@ -68,7 +80,7 @@ export function saveArticle(
     id: existing?.id ?? crypto.randomUUID(),
     url: normalizedUrl,
     title: title.trim() || titleFromUrl(normalizedUrl),
-    summary: summaryFields(summary),
+    summary: summaryFields({ ...summary, summary: summary.summary.trim(), key_points: summary.key_points.map((point) => point.trim()).filter(Boolean) }),
     savedAt: existing?.savedAt ?? now,
     updatedAt: now,
     isFavorite: existing?.isFavorite ?? false,
@@ -106,8 +118,8 @@ export function loadSavedArticles(): SavedArticle[] {
       !summary || typeof summary.summary !== "string" || !summary.summary.trim() ||
       (summary.title !== undefined && (typeof summary.title !== "string" || !summary.title.trim() || summary.title.length > 200)) ||
       !Array.isArray(summary.key_points) || !summary.key_points.every((point: unknown) => typeof point === "string") ||
-      typeof summary.model !== "string" || typeof summary.provider !== "string" ||
-      !["local", "cloud"].includes(summary.mode)
+      !["manual", "local", "cloud"].includes(summary.mode) ||
+      (summary.mode !== "manual" && (typeof summary.model !== "string" || typeof summary.provider !== "string"))
     ) throw new Error("Invalid saved article.");
     const normalizedUrl = articleUrl(url);
     if (urls.has(normalizedUrl)) throw new Error("Duplicate saved article.");

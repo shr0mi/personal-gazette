@@ -18,7 +18,7 @@ export default function HomePage({ fetchProps, favorites, storageError, onOpen, 
     <>
       <section className="home-start" aria-labelledby="home-title">
         <h1 id="home-title">Start with a link.</h1>
-        <p className="intro">Paste an article link, review the extracted text, and generate a summary.</p>
+        <p className="intro">Paste an article link, then write your own summary and key points. AI is there when you need a hand.</p>
         <FetchForm {...fetchProps} />
       </section>
       <section className="favorites-section" aria-labelledby="favorites-title">

@@ -10,10 +10,10 @@ type Props = {
   feedback: { error?: string; message?: string } | null;
   onOpen: (article: SavedArticle) => void;
   onFavorite: (article: SavedArticle) => void;
-  onArticle: () => void;
+  onNewArticle: () => void;
 };
 
-export default function SavedArticlesPage({ articles, storageError, disabled, feedback, onOpen, onFavorite, onArticle }: Props) {
+export default function SavedArticlesPage({ articles, storageError, disabled, feedback, onOpen, onFavorite, onNewArticle }: Props) {
   const [query, setQuery] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const favorites = articles.filter((article) => article.isFavorite);
@@ -39,7 +39,7 @@ export default function SavedArticlesPage({ articles, storageError, disabled, fe
       <h2 className="visually-hidden">Your saved articles</h2>
       {visible.length > 0 ? <ArticleCards articles={visible} onOpen={onOpen} onFavorite={onFavorite} disabled={disabled} favoriteDisabled={!!storageError} /> : !storageError && (
         <section className="saved-empty">
-          {articles.length === 0 ? <><Bookmark size={36} strokeWidth={1} /><p className="eyebrow">A fresh start</p><h2>Your archive is waiting.</h2><p>Fetch an article, make sense of it, and save the summary here.</p><button onClick={onArticle} disabled={disabled}>Find your first read <ArrowUpRight size={18} /></button></>
+          {articles.length === 0 ? <><Bookmark size={36} strokeWidth={1} /><p className="eyebrow">A fresh start</p><h2>Your archive is waiting.</h2><p>Fetch an article, make sense of it, and save the summary here.</p><button onClick={onNewArticle} disabled={disabled}>Find your first read <ArrowUpRight size={18} /></button></>
             : <><Search size={32} strokeWidth={1} /><h2>{query ? "No matching reads." : "No favorites just yet."}</h2><p>{query ? "Try a different title, source, or phrase." : "Star an article to add it to your favorites."}</p><button className="secondary-button" onClick={() => { setQuery(""); setFavoritesOnly(false); }}>Show all articles</button></>}
         </section>
       )}

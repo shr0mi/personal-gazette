@@ -46,6 +46,61 @@ test('saving the same article updates it without losing its identity, original d
   assert.equal(original[0].summary.summary, result().summary);
 });
 
+test('manual summaries and key points survive reload without requiring model metadata', () => {
+  storage.clear();
+  const articles = saveArticle([], 'https://example.com/my-reading', 'My reading', {
+    mode: 'manual', summary: '  My own summary. বাংলা  ', key_points: [' First takeaway. ', '', '  ', 'Second takeaway.'],
+    inputText: 'PRIVATE EXTRACTED TEXT', model: 'unused-model', provider: 'unused-provider', api_key: 'secret-key',
+  });
+  persistSavedArticles(articles);
+  assert.deepEqual(loadSavedArticles()[0].summary, {
+    mode: 'manual', summary: 'My own summary. বাংলা', key_points: ['First takeaway.', 'Second takeaway.'],
+  });
+  for (const value of ['PRIVATE EXTRACTED TEXT', 'unused-model', 'unused-provider', 'secret-key']) {
+    assert.equal(storage.get(storageKey).includes(value), false);
+  }
+});
+
+test('manual articles can omit key points and blank summaries remain invalid', () => {
+  storage.clear();
+  const articles = saveArticle([], 'https://example.com/my-reading', 'My reading', {
+    mode: 'manual', summary: 'A summary without key points.', key_points: [],
+  });
+  persistSavedArticles(articles);
+  assert.deepEqual(loadSavedArticles(), articles);
+  storage.set(storageKey, JSON.stringify([{ ...articles[0], summary: { ...articles[0].summary, summary: '  ' } }]));
+  assert.throws(loadSavedArticles, /Invalid saved article/);
+});
+
+test('editing an AI draft preserves its model provenance and updates the same saved article', () => {
+  storage.clear();
+  const original = saved();
+  const updated = saveArticle(original, original[0].url, 'My edited title', {
+    ...original[0].summary, summary: 'My edited AI summary.', key_points: ['My own takeaway.'],
+  });
+  persistSavedArticles(updated);
+  const article = loadSavedArticles()[0];
+  assert.equal(article.id, original[0].id);
+  assert.equal(article.summary.summary, 'My edited AI summary.');
+  assert.deepEqual(article.summary.key_points, ['My own takeaway.']);
+  assert.equal(article.summary.model, result().model);
+  assert.equal(article.summary.mode, 'local');
+});
+
+test('AI generation can replace manual notes while retaining a custom title and favorites', async () => {
+  const [manual] = saveArticle([], 'https://example.com/an-article', 'My own title', {
+    mode: 'manual', summary: 'My own summary.', key_points: ['My own point.'],
+  });
+  const original = { ...manual, isFavorite: true };
+  const refreshed = await refreshSavedArticle(original, {
+    extract: async () => ({ text: 'Fresh source.' }), summarize: async () => result(),
+  });
+  assert.deepEqual(refreshed.summary, result());
+  assert.equal(refreshed.title, 'My own title');
+  assert.equal(refreshed.isFavorite, true);
+  assert.equal(original.summary.mode, 'manual');
+});
+
 test('fresh storage is empty, while unreadable data is surfaced without overwriting it', () => {
   storage.clear();
   assert.deepEqual(loadSavedArticles(), []);
