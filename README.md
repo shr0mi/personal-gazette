@@ -2,7 +2,14 @@
   <img src="./logo.png" alt="Personal Gazette logo" width="100" height="100" />
   <h1>Personal Gazette</h1>
   <p>A personal newspaper for saving articles, writing your own summaries or using AI, and remembering what matters.</p>
+  <p><a href="https://youtu.be/QKwXh3J0Qws">Demo</a></p>
 </div>
+
+## Download
+
+[Download for macOS — Apple Silicon (v0.1.0)](https://github.com/shr0mi/personal-gazette/releases/download/v0.1.0/Personal.Gazette_0.1.0_aarch64.dmg).
+
+Open the `.dmg` file and drag **Personal Gazette** into **Applications**.
 
 ## Screenshots
 
