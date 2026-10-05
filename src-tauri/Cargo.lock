@@ -694,6 +694,7 @@ dependencies = [
 name = "deep-websearch-agent"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "reqwest 0.12.28",
  "serde",
  "tauri",

@@ -1,14 +1,14 @@
+mod backend_process;
+
+use backend_process::BackendProcess;
 use std::{net::TcpListener, sync::Mutex, time::Duration};
 use tauri::{Manager, RunEvent, State};
-use tauri_plugin_shell::{
-    process::{CommandChild, CommandEvent},
-    ShellExt,
-};
+use tauri_plugin_shell::ShellExt;
 
 struct BackendState {
     port: u16,
     token: String,
-    child: Mutex<Option<CommandChild>>,
+    child: Mutex<Option<BackendProcess>>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -167,29 +167,12 @@ pub fn run() {
             drop(listener);
 
             let token = uuid::Uuid::new_v4().to_string();
-            let (mut events, child) = app
+            let command = app
                 .shell()
                 .sidecar("deep-websearch-api")?
-                .args(["--port", &port.to_string()])
-                .env("DEEP_WEBSEARCH_TOKEN", &token)
-                .spawn()?;
-
-            tauri::async_runtime::spawn(async move {
-                while let Some(event) = events.recv().await {
-                    match event {
-                        CommandEvent::Stdout(bytes) => {
-                            eprintln!("sidecar: {}", String::from_utf8_lossy(&bytes));
-                        }
-                        CommandEvent::Stderr(bytes) => {
-                            eprintln!("sidecar: {}", String::from_utf8_lossy(&bytes));
-                        }
-                        CommandEvent::Terminated(status) => {
-                            eprintln!("sidecar exited: {status:?}");
-                        }
-                        _ => {}
-                    }
-                }
-            });
+                .args(["--port", &port.to_string(), "--parent-stdin"])
+                .env("DEEP_WEBSEARCH_TOKEN", &token);
+            let child = BackendProcess::spawn(command.into())?;
 
             app.manage(BackendState {
                 port,
@@ -211,7 +194,7 @@ pub fn run() {
         if let RunEvent::Exit = event {
             if let Ok(mut child) = app_handle.state::<BackendState>().child.lock() {
                 if let Some(child) = child.take() {
-                    let _ = child.kill();
+                    child.shutdown();
                 }
             }
         }

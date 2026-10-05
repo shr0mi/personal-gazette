@@ -118,7 +118,7 @@ In Settings, choose **Ollama**, enter `http://127.0.0.1:11434` or just `11434`, 
 | Packaging | PyInstaller bundles the Python API as a Tauri sidecar |
 | Tests | Node's built-in test runner and Python `unittest` |
 
-The React interface calls Tauri commands, which forward requests to a local FastAPI sidecar. The Rust host starts and stops that process, chooses a free loopback port, and authenticates API requests with a per-launch token.
+The React interface calls Tauri commands, which forward requests to a local FastAPI sidecar. The Rust host starts and stops that process, chooses a free loopback port, and authenticates API requests with a per-launch token. PyInstaller's onefile sidecar uses a launcher and a Python server process. On quit, the host requests graceful server shutdown through stdin and waits for the launcher to finish. The server also stops if the desktop's pipe closes unexpectedly. Shutdown deadlines prevent stalled requests or startup from leaving a background process; the host's timeout fallback terminates the entire backend process tree.
 
 ### Prerequisites
 
@@ -164,6 +164,10 @@ npm test
 On Windows, replace `.venv/bin/python` with `.venv/Scripts/python.exe`.
 
 Backend tests mock downloads and model calls, while using a real HTML fixture with Trafilatura for extraction. The tests do not require a running model server or cloud API key and can run offline once dependencies are installed.
+
+On macOS and Linux, the lifecycle tests also start real backend processes and verify normal quit, lost desktop connections, interrupted startup, and forced desktop exits. To run the same checks against a packaged sidecar, set `SIDECAR_TEST_BINARY` to its absolute executable path and run `.venv/bin/python -m unittest discover -s backend/tests -p test_sidecar.py -v`.
+
+Run `cargo test --manifest-path src-tauri/Cargo.toml --locked --lib` for the Rust host's graceful and forced process cleanup tests. With `SIDECAR_TEST_BINARY` set, add `packaged_backend_shutdown -- --ignored` to exercise the host's actual process manager against the packaged backend, including quitting during startup.
 
 Run the compilation checks as well when changing application code:
 
